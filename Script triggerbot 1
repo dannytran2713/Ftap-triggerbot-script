@@ -1,0 +1,69 @@
+--// Auto-Target Triggerbot cho Fling Things and People (Dành riêng cho Xeno)
+--// Phím M: Bật/Tắt trạng thái
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local camera = Workspace.CurrentCamera
+
+local ENABLED = false
+local MAX_DISTANCE = 29.5 -- Tầm quét mục tiêu (Studs)
+local COOLDOWN = 0.8      -- Thời gian chờ giữa các lần quét
+local lastRun = 0
+
+-- Bật/tắt bằng phím M
+UserInputService.InputBegan:Connect(function(input, processed)
+    if not processed and input.KeyCode == Enum.KeyCode.M then
+        ENABLED = not ENABLED
+        print("[Xeno Script] Trạng thái Auto-Grab: " .. (ENABLED and "BẬT (ON)" or "TẮT (OFF)"))
+    end
+end)
+
+-- Tìm kiếm mục tiêu xung quanh trong tầm nhìn
+local function getTarget()
+    local char = player.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
+    
+    local root = char.HumanoidRootPart
+    local bestTarget = nil
+    local shortestDist = MAX_DISTANCE
+
+    for _, obj in ipairs(Workspace:GetChildren()) do
+        if obj ~= char and obj:IsA("Model") then
+            local hum = obj:FindFirstChildOfClass("Humanoid")
+            local targetRoot = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Head")
+            
+            if hum and targetRoot and hum.Health > 0 then
+                local dist = (root.Position - targetRoot.Position).Magnitude
+                if dist < shortestDist then
+                    local _, inView = camera:WorldToViewportPoint(targetRoot.Position)
+                    if inView then
+                        shortestDist = dist
+                        bestTarget = targetRoot
+                    end
+                end
+            end
+        end
+    end
+    return bestTarget
+end
+
+-- Vòng lặp quét liên tục
+RunService.RenderStepped:Connect(function()
+    if not ENABLED then return end
+    
+    local now = tick()
+    if now - lastRun < COOLDOWN then return end
+    
+    local target = getTarget()
+    if target then
+        lastRun = now
+        -- In ra F9 Console của Xeno để kiểm tra mục tiêu bắt được
+        print("[Xeno] Đã bắt góc mục tiêu: " .. target.Parent.Name .. " cách " .. math.floor((player.Character.HumanoidRootPart.Position - target.Position).Magnitude) .. " studs")
+        
+        -- Ở đây bạn có thể kết hợp gọi các RemoteEvent tương tác của game nếu muốn kích hoạt đòn đánh/ném
+    end
+end)
