@@ -1,0 +1,63 @@
+--// Safe Custom Auto-Grab (Max Range: 30) - 100% Clean
+--// Phím M: Bật/Tắt | Không GUI | Không khóa camera
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local camera = Workspace.CurrentCamera
+
+local ENABLED = false
+local MAX_DISTANCE = 30 -- Đã đặt mức tối đa là 30
+local COOLDOWN = 0.25
+local lastAction = 0
+
+local raycastParams = RaycastParams.new()
+raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+
+-- Bật/tắt ngầm bằng phím M (An toàn tuyệt đối, không có kết nối ngoài)
+UserInputService.InputBegan:Connect(function(input, processed)
+    if not processed and input.KeyCode == Enum.KeyCode.M then
+        ENABLED = not ENABLED
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if not ENABLED then return end
+    
+    local now = tick()
+    if now - lastAction < COOLDOWN then return end
+    
+    local character = player.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+    
+    raycastParams.FilterDescendantsInstances = {character}
+    
+    local origin = camera.CFrame.Position
+    local direction = camera.CFrame.LookVector * MAX_DISTANCE
+    local rayResult = Workspace:Raycast(origin, direction, raycastParams)
+    
+    if rayResult then
+        local hitPart = rayResult.Instance
+        local model = hitPart:FindFirstAncestorOfClass("Model")
+        
+        if model and model ~= character then
+            local humanoid = model:FindFirstChildOfClass("Humanoid")
+            local targetRoot = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Head")
+            
+            if humanoid and targetRoot then
+                lastAction = now
+                
+                -- Kích hoạt tương tác chạm an toàn phía client
+                pcall(function()
+                    if hitPart:IsA("BasePart") then
+                        firetouchinterest(character.HumanoidRootPart, hitPart, 0)
+                        firetouchinterest(character.HumanoidRootPart, hitPart, 1)
+                    end
+                end)
+            end
+        end
+    end
+end)
